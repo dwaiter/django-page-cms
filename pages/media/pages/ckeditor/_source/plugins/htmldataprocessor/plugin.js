@@ -16,7 +16,7 @@ For licensing, see LICENSE.html or http://ckeditor.com/license
 	{
 		var lastIndex = block.children.length,
 			last = block.children[ lastIndex - 1 ];
-		while(  last && last.type == CKEDITOR.NODE_TEXT && !CKEDITOR.tools.trim( last.value ) )
+		while (  last && last.type == CKEDITOR.NODE_TEXT && !CKEDITOR.tools.trim( last.value ) )
 			last = block.children[ --lastIndex ];
 		return last;
 	}
@@ -41,7 +41,12 @@ For licensing, see LICENSE.html or http://ckeditor.com/license
 	function blockNeedsExtension( block )
 	{
 		var lastChild = lastNoneSpaceChild( block );
-		return !lastChild || lastChild.type == CKEDITOR.NODE_ELEMENT && lastChild.name == 'br';
+
+		return !lastChild
+			|| lastChild.type == CKEDITOR.NODE_ELEMENT && lastChild.name == 'br'
+			// Some of the controls in form needs extension too,
+			// to move cursor at the end of the form. (#4791)
+			|| block.name == 'form' && lastChild.name == 'input';
 	}
 
 	function extendBlockForDisplay( block )
@@ -79,6 +84,7 @@ For licensing, see LICENSE.html or http://ckeditor.com/license
 	delete blockLikeTags.pre;
 	var defaultDataFilterRules =
 	{
+		elements : {},
 		attributeNames :
 		[
 			// Event attributes (onXYZ) must not be directly set. They can become
@@ -172,6 +178,12 @@ For licensing, see LICENSE.html or http://ckeditor.com/license
 					}
 				},
 
+				html : function( element )
+				{
+					delete element.attributes.contenteditable;
+					delete element.attributes[ 'class' ];
+				},
+
 				body : function( element )
 				{
 					delete element.attributes.spellcheck;
@@ -185,6 +197,11 @@ For licensing, see LICENSE.html or http://ckeditor.com/license
 
 					if ( !element.attributes.type )
 						element.attributes.type = 'text/css';
+				},
+
+				title : function( element )
+				{
+					element.children[ 0 ].value = element.attributes[ '_cke_title' ];
 				}
 			},
 
@@ -228,6 +245,21 @@ For licensing, see LICENSE.html or http://ckeditor.com/license
 		{
 			return value.toLowerCase();
 		};
+	}
+
+	function protectReadOnly( element )
+	{
+		element.attributes.contenteditable = "false";
+	}
+	function unprotectReadyOnly( element )
+	{
+		delete element.attributes.contenteditable;
+	}
+	// Disable form elements editing mode provided by some browers. (#5746)
+	for ( i in { input : 1, textarea : 1 } )
+	{
+		defaultDataFilterRules.elements[ i ] = protectReadOnly;
+		defaultHtmlFilterRules.elements[ i ] = unprotectReadyOnly;
 	}
 
 	var protectAttributeRegex = /<(?:a|area|img|input)[\s\S]*?\s((?:href|src|name)\s*=\s*(?:(?:"[^"]*")|(?:'[^']*')|(?:[^ "'>]+)))/gi;
