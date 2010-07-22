@@ -14,7 +14,7 @@ For licensing, see LICENSE.html or http://ckeditor.com/license
 	var nonExitableElementNames = { table:1,pre:1 };
 
 	// Matching an empty paragraph at the end of document.
-	var emptyParagraphRegexp = /\s*<(p|div|address|h\d|center)[^>]*>\s*(?:<br[^>]*>|&nbsp;|\u00A0|&#160;)?\s*(:?<\/\1>)?\s*(?=$|<\/body>)/gi;
+	var emptyParagraphRegexp = /\s*<(p|div|address|h\d|center|li)[^>]*>\s*(?:<br[^>]*>|&nbsp;|\u00A0|&#160;)?\s*(:?<\/\1>)?\s*(?=$|<\/body>)/gi;
 
 	function onInsertHtml( evt )
 	{
@@ -46,6 +46,14 @@ For licensing, see LICENSE.html or http://ckeditor.com/license
 			}
 			else
 				this.document.$.execCommand( 'inserthtml', false, data );
+
+			if ( CKEDITOR.env.webkit )
+			{
+				this.document.$.execCommand( 'inserthtml', false, '<span id="cke_paste_marker" cke_temp="1"></span>' );
+				var marker = this.document.getById( 'cke_paste_marker' );
+				marker.scrollIntoView();
+				marker.remove();
+			}
 
 			CKEDITOR.tools.setTimeout( function()
 				{
@@ -122,7 +130,8 @@ For licensing, see LICENSE.html or http://ckeditor.com/license
 			range.moveToPosition( lastElement, CKEDITOR.POSITION_AFTER_END );
 
 			var next = lastElement.getNextSourceNode( true );
-			if ( next && next.type == CKEDITOR.NODE_ELEMENT )
+			var lastElementIsInline = CKEDITOR.dtd.$inline[ lastElement.getName() ];
+			if ( !lastElementIsInline && next && next.type == CKEDITOR.NODE_ELEMENT )
 				range.moveToElementEditStart( next );
 
 			selection.selectRanges( [ range ] );
@@ -442,6 +451,26 @@ For licensing, see LICENSE.html or http://ckeditor.com/license
 								var control = ev.data.getTarget();
 								if ( control.is( 'img', 'hr', 'input', 'textarea', 'select' ) )
 									editor.getSelection().selectElement( control );
+							} );
+						}
+
+						if ( CKEDITOR.env.gecko )
+						{
+							domDocument.on( 'mouseup', function( ev )
+							{
+								if ( ev.data.$.button == 2 )
+								{
+									var target = ev.data.getTarget();
+
+									// Prevent right click from selecting an empty block even
+									// when selection is anchored inside it. (#5845)
+									if ( !target.getOuterHtml().replace( emptyParagraphRegexp, '' ) )
+									{
+										var range = new CKEDITOR.dom.range( domDocument );
+										range.moveToElementEditStart( target );
+										range.select( true );
+									}
+								}
 							} );
 						}
 
@@ -777,6 +806,13 @@ For licensing, see LICENSE.html or http://ckeditor.com/license
 								editor.document.clearCustomData();
 
 								iframe.clearCustomData();
+
+								/*
+								* IE BUG: When destroying editor DOM with the selection remains inside
+								* editing area would break IE7/8's selection system, we have to put the editing
+								* iframe offline first. (#3812 and #5441)
+								*/
+								iframe.remove();
 							},
 
 							unload : function( holderElement )
@@ -882,7 +918,7 @@ For licensing, see LICENSE.html or http://ckeditor.com/license
 			editor.on( 'insertElement', function ( evt )
 			{
 				var element = evt.data;
-				if ( element.type = CKEDITOR.NODE_ELEMENT
+				if ( element.type == CKEDITOR.NODE_ELEMENT
 						&& ( element.is( 'input' ) || element.is( 'textarea' ) ) )
 				{
 					element.setAttribute( 'contentEditable', false );
