@@ -49,7 +49,7 @@ class PageManager(models.Manager):
 
     def root(self):
         """Return a :class:`QuerySet` of pages without parent."""
-        return self.filter(parent__isnull=True)
+        return self.on_site().filter(parent__isnull=True)
 
     def navigation(self):
         """Creates a :class:`QuerySet` of the published root pages."""
@@ -101,16 +101,16 @@ class PageManager(models.Manager):
     def from_path(self, complete_path, lang, exclude_drafts=True):
         """Return a :class:`Page <pages.models.Page>` according to
         the page's path."""
-        from pages.models import Content, Page
         slug, path, lang = get_slug_and_relative_path(complete_path, lang)
-        page_ids = Content.objects.get_page_ids_by_slug(slug)
+        page_ids = ContentManager().get_page_ids_by_slug(slug)
         pages_list = self.on_site().filter(id__in=page_ids)
         if exclude_drafts:
-            pages_list = pages_list.exclude(status=Page.DRAFT)
+            pages_list = pages_list.exclude(status=self.model.DRAFT)
         current_page = None
         if len(pages_list) == 1:
             return pages_list[0]
-        # more than one page matching the slug, let's use the full url
+        # if more than one page is matching the slug,
+        # we need to use the full URL
         if len(pages_list) > 1:
             for page in pages_list:
                 if page.get_complete_slug(lang) == complete_path:
@@ -190,8 +190,14 @@ class ContentManager(models.Manager):
             language = settings.PAGE_DEFAULT_LANGUAGE
 
         frozen = int(bool(page.freeze_date))
-        content_dict = cache.get(self.PAGE_CONTENT_DICT_KEY %
-            (page.id, ctype, frozen))
+        key = self.PAGE_CONTENT_DICT_KEY % (page.id, ctype, frozen)
+        
+        if page._content_dict is None:
+            page._content_dict = dict()
+        if page._content_dict.get(key, None):
+            content_dict = page._content_dict.get(key)
+        else:
+            content_dict = cache.get(key)
 
         # fill a dict object for each language
         if not content_dict:
@@ -211,8 +217,8 @@ class ContentManager(models.Manager):
                     content_dict[lang] = content.body
                 except self.model.DoesNotExist:
                     content_dict[lang] = ''
-            cache.set(self.PAGE_CONTENT_DICT_KEY % (page.id, ctype, frozen),
-                content_dict)
+            page._content_dict[key] = content_dict
+            cache.set(key, content_dict)
 
         if language in content_dict and content_dict[language]:
             return filter_link(content_dict[language], page, language, ctype)

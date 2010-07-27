@@ -1,11 +1,10 @@
 """Default example views"""
 from django.http import Http404, HttpResponsePermanentRedirect
-from django.contrib.sites.models import SITE_CACHE
 from pages import settings
-from pages.models import Page, Content, PageAlias
+from pages.models import Page, PageAlias
 from pages.http import auto_render, get_language_from_request
 from pages.http import get_slug_and_relative_path
-from pages.urlconf_registry import registry, get_urlconf
+from pages.urlconf_registry import get_urlconf
 from django.core.urlresolvers import resolve
 
 def details(request, path=None, lang=None, delegation=True, **kwargs):
@@ -28,12 +27,13 @@ def details(request, path=None, lang=None, delegation=True, **kwargs):
     
     pages_navigation = Page.objects.navigation().order_by("tree_id")
     current_page = False
-    template_name = settings.DEFAULT_PAGE_TEMPLATE
+    template_name = settings.PAGE_DEFAULT_TEMPLATE
 
     if path is None:
         slug, path, lang = get_slug_and_relative_path(request.path, lang)
 
-    if lang is None:
+    # Can be an empty string or None
+    if not lang:
         lang = get_language_from_request(request)
 
     context = {
@@ -45,11 +45,10 @@ def details(request, path=None, lang=None, delegation=True, **kwargs):
     if lang not in [key for (key, value) in settings.PAGE_LANGUAGES]:
         raise Http404
 
-    exclude_drafts = not(request.user.is_authenticated()
-        and request.user.is_staff)
+    is_user_staff = request.user.is_authenticated() and request.user.is_staff
     if path:
         current_page = Page.objects.from_path(path, lang,
-            exclude_drafts=exclude_drafts)
+            exclude_drafts=(not is_user_staff))
     elif pages_navigation:
         current_page = Page.objects.root()[0]
 
@@ -61,7 +60,7 @@ def details(request, path=None, lang=None, delegation=True, **kwargs):
             return HttpResponsePermanentRedirect(url)
         raise Http404
 
-    if (not (request.user.is_authenticated() and request.user.is_staff) and
+    if ((not is_user_staff) and
             current_page.calculated_status in (Page.DRAFT, Page.EXPIRED)):
         raise Http404
 

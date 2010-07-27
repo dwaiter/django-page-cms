@@ -47,6 +47,9 @@
             {% for lang in page_languages %}
                 <li>
                     {% if page|has_content_in:lang.0 %}
+                        {% if not page|language_content_up_to_date:lang.0 %}
+                        →
+                        {% endif %}
                         <a href="{{ url }}{{ page.id }}/?language={{ lang.0 }}" class="changelink" title="{% blocktrans with lang.1|lower as lang %}edit {{ lang }} translation{% endblocktrans %}">{{ lang.0 }}</a>
                     {% else %}
                         <a href="{{ url }}{{ page.id }}/?language={{ lang.0 }}" class="changelink addlang" title="{% blocktrans with lang.1|lower as lang %}create {{ lang }} translation{% endblocktrans %}">{{ lang.0 }}</a>
@@ -58,27 +61,35 @@
     <td class="last-modification-cell">
         {{ page.last_modification_date|date:_("DATETIME_FORMAT") }}
     </td>
-    <td class="publish-cell">
-        {% ifequal page.status page.DRAFT %}
-            <img src="{{ PAGES_MEDIA_URL }}images/icons/draft.gif" alt="draft" />
-        {% else %}{% ifequal page.status page.PUBLISHED %}
-            <img src="{{ PAGES_MEDIA_URL }}images/icons/published.gif" alt="published" />
-        {% else %}
-            <img src="{{ PAGES_MEDIA_URL }}images/icons/hidden.gif" alt="hidden"/>
-        {% endifequal %}{% endifequal %}
-        &nbsp;
-        <select class="publish-select" name="select-status-{{ page.id }}">
-            <option value="0" {% ifequal page.status page.DRAFT %}selected="selected"{% endifequal %}>{% trans "Draft" %}</option>
-            <option value="1" {% ifequal page.status page.PUBLISHED %}selected="selected"{% endifequal %}>{% trans "In navigation" %}</option>
-            <option value="3" {% ifequal page.status page.HIDDEN %}selected="selected"{% endifequal %}>{% trans "Hidden" %}</option>
-        </select>
-    </td>
+    {% if can_publish %}
+        <td class="publish-cell">
+            {% ifequal page.status page.DRAFT %}
+                <img src="{{ PAGES_MEDIA_URL }}images/icons/draft.gif" alt="draft" />
+            {% else %}{% ifequal page.status page.PUBLISHED %}
+                <img src="{{ PAGES_MEDIA_URL }}images/icons/published.gif" alt="published" />
+            {% else %}
+                <img src="{{ PAGES_MEDIA_URL }}images/icons/hidden.gif" alt="hidden"/>
+            {% endifequal %}{% endifequal %}
+            &nbsp;
+            <select class="publish-select" name="select-status-{{ page.id }}">
+                <option value="0" {% ifequal page.status page.DRAFT %}selected="selected"{% endifequal %}>{% trans "Draft" %}</option>
+                <option value="1" {% ifequal page.status page.PUBLISHED %}selected="selected"{% endifequal %}>{% trans "In navigation" %}</option>
+                <option value="3" {% ifequal page.status page.HIDDEN %}selected="selected"{% endifequal %}>{% trans "Hidden" %}</option>
+            </select>
+        </td>
+    {% else %}
+        <td>
+            {% ifequal page.status page.DRAFT %}{% trans "Draft" %}{% endifequal %}
+            {% ifequal page.status page.PUBLISHED %}{% trans "In navigation" %}{% endifequal %}
+            {% ifequal page.status page.HIDDEN %}{% trans "Hidden" %}{% endifequal %}
+        </td>
+    {% endif %}
     <td class="template-cell">
         {{ page.get_template_name }}
     </td>
     <td class="author-cell">
         {% cache 10000 page_author page.author_id %}
-            {% firstof page.author.get_full_name page.author.first_name page.author.username %}
+            {% firstof page.author.user page.author.get_full_name page.author.first_name page.author.username %}
         {% endcache %}
     </td>
 </tr>

@@ -3,6 +3,8 @@
 import os
 PROJECT_DIR = os.path.dirname(__file__)
 
+TEST_PROJ = 'pages.testproj'
+
 DEBUG = True
 TEMPLATE_DEBUG = DEBUG
 
@@ -27,6 +29,8 @@ DATABASE_PORT = ''             # Set to empty string for default. Not used with 
 # If running in a Windows environment this must be set to the same as your
 # system time zone.
 TIME_ZONE = 'America/Chicago'
+
+SITE_ID = 1
 
 # If you set this to False, Django will make some optimizations so as not
 # to load the internationalization machinery.
@@ -79,7 +83,7 @@ MIDDLEWARE_CLASSES = (
     'django.middleware.doc.XViewMiddleware',
 )
 
-ROOT_URLCONF = 'example.urls'
+ROOT_URLCONF = TEST_PROJ + '.urls'
 
 TEMPLATE_DIRS = (
     # Put strings here, like "/home/html/django_templates" or "C:/www/django/templates".
@@ -96,7 +100,7 @@ INSTALLED_APPS = (
     'django.contrib.sessions',
     'django.contrib.admin',
     'django.contrib.sites',
-    'pages.testproj.documents',
+    TEST_PROJ + '.documents',
     #'tagging',
     'pages',
     'mptt',
@@ -108,15 +112,15 @@ INSTALLED_APPS = (
     # these 2 package don't create any dependecies
     'authority',
     # haystack change coverage score report by importing modules
-    'haystack',
+    #'haystack',
 )
 
 PAGE_TINYMCE = False
 #PAGE_TAGGING = True
 
 PAGE_CONNECTED_MODELS = [{
-    'model':'pages.testproj.documents.models.Document',
-    'form':'pages.testproj.documents.models.DocumentForm',
+    'model':TEST_PROJ + '.documents.models.Document',
+    'form':TEST_PROJ + '.documents.models.DocumentForm',
     'options':{
             'extra': 3,
             'max_num': 10,
@@ -162,16 +166,16 @@ PAGE_TEMPLATES = (
     ('pages/examples/nice.html', 'nice one'),
     ('pages/examples/cool.html', 'cool one'),
     ('pages/examples/editor.html', 'raw editor'),
+    ('pages/tests/untranslated.html', 'untranslated'),
 )
 
 PAGE_SANITIZE_USER_INPUT = True
 
-SITE_ID = 1
-PAGE_USE_SITE_ID = False
+PAGE_USE_SITE_ID = True
 
 HAYSTACK_SITECONF = 'example.search_sites'
-HAYSTACK_SEARCH_ENGINE = 'whoosh'
-HAYSTACK_WHOOSH_PATH = os.path.join(PROJECT_DIR, 'whoosh_index')
+HAYSTACK_SEARCH_ENGINE = 'dummy'
+#HAYSTACK_WHOOSH_PATH = os.path.join(PROJECT_DIR, 'whoosh_index')
 
 COVERAGE_EXCLUDE_MODULES = (
     "pages.migrations.*",
@@ -183,6 +187,15 @@ COVERAGE_EXCLUDE_MODULES = (
 COVERAGE_HTML_REPORT = True
 COVERAGE_BRANCH_COVERAGE = False
 
+#TEST_RUNNER = 'example.test_runner.run_tests'
+
+#here = os.path.abspath(os.path.dirname(__file__))
+#NOSE_ARGS = [os.path.join(here, os.pardir, "pages", "tests"),
+#            "--cover3-package=pages",
+#            "--cover3-branch",
+#            "--with-coverage3",
+#            "--cover3-html",
+#            "--cover3-exclude=%s" % ",".join(COVERAGE_EXCLUDE_MODULES)]
 
 try:
     from local_settings import *

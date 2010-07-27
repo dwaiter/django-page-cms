@@ -4,12 +4,12 @@ from pages import settings
 from pages.models import Page, Content, PageAlias
 from pages.http import get_language_from_request, get_template_from_request
 from pages.utils import get_placeholders
-from pages.utils import get_language_from_request
 from pages.templatetags.pages_tags import PlaceholderNode
 from pages.admin.utils import get_connected, make_inline_admin
 from pages.admin.forms import PageForm
 from pages.admin.views import traduction, get_content, sub_menu, list_pages_ajax
 from pages.admin.views import change_status, modify_content, delete_content
+from pages.admin.views import move_page
 from pages.permissions import PagePermission
 from pages.http import auto_render
 import pages.widgets
@@ -39,7 +39,7 @@ class PageAdmin(admin.ModelAdmin):
     general_fields = ['title', 'slug', 'status', 'target',
         'position', 'freeze_date']
 
-    if settings.PAGE_USE_SITE_ID:
+    if settings.PAGE_USE_SITE_ID and not settings.PAGE_HIDE_SITES:
         general_fields.append('sites')
     insert_point = general_fields.index('status') + 1
     
@@ -102,15 +102,15 @@ class PageAdmin(admin.ModelAdmin):
             url(r'^(?P<page_id>[0-9]+)/traduction/(?P<language_id>[-\w]+)/$',
                 traduction, name='page-traduction'),
             url(r'^(?P<page_id>[0-9]+)/get-content/(?P<content_id>[-\w]+)/$',
-                get_content, name='page-traduction'),
+                get_content, name='page-get-content'),
             url(r'^(?P<page_id>[0-9]+)/modify-content/(?P<content_id>[-\w]+)/(?P<language_id>[-\w]+)/$',
-                modify_content, name='page-traduction'),
+                modify_content, name='page-modify-content'),
             url(r'^(?P<page_id>[0-9]+)/delete-content/(?P<language_id>[-\w]+)/$',
-                delete_content, name='page-delete_content'),
+                delete_content, name='page-delete-content'),
             url(r'^(?P<page_id>[0-9]+)/sub-menu/$',
                 sub_menu, name='page-sub-menu'),
             url(r'^(?P<page_id>[0-9]+)/move-page/$',
-                self.move_page, name='page-traduction'),
+                move_page, name='page-move-page'),
             url(r'^(?P<page_id>[0-9]+)/change-status/$',
                 change_status, name='page-change-status'),
         )
@@ -151,13 +151,17 @@ class PageAdmin(admin.ModelAdmin):
         for name in self.mandatory_placeholders:
             data = form.cleaned_data[name]
             placeholder = PlaceholderNode(name)
-            placeholder.save(page, language, data, change)
+            extra_data = placeholder.get_extra_data(form.data)
+            placeholder.save(page, language, data, change,
+                extra_data=extra_data)
 
         for placeholder in get_placeholders(page.get_template()):
             if(placeholder.name in form.cleaned_data and placeholder.name
                     not in self.mandatory_placeholders):
                 data = form.cleaned_data[placeholder.name]
-                placeholder.save(page, language, data, change)
+                extra_data = placeholder.get_extra_data(form.data)
+                placeholder.save(page, language, data, change,
+                    extra_data=extra_data)
         
         page.invalidate()
 
@@ -175,10 +179,12 @@ class PageAdmin(admin.ModelAdmin):
             'fields': list(self.general_fields),
             'classes': ('module-general',),
         }
-        
+
         default_fieldsets = list(self.fieldsets)
         if not perms.check('freeze'):
             general_module['fields'].remove('freeze_date')
+        if not perms.check('publish'):
+            general_module['fields'].remove('status')
 
         default_fieldsets[0][1] = general_module
 
@@ -224,7 +230,7 @@ class PageAdmin(admin.ModelAdmin):
         page_templates = settings.get_page_templates()
         if len(page_templates) > 0:
             template_choices = list(page_templates)
-            template_choices.insert(0, (settings.DEFAULT_PAGE_TEMPLATE,
+            template_choices.insert(0, (settings.PAGE_DEFAULT_TEMPLATE,
                     _('Default template')))
             form.base_fields['template'].choices = template_choices
             form.base_fields['template'].initial = force_unicode(template)
@@ -232,7 +238,7 @@ class PageAdmin(admin.ModelAdmin):
         for placeholder in get_placeholders(template):
             name = placeholder.name
             if obj:
-                initial = Content.objects.get_content(obj, language, name)
+                initial = placeholder.get_content(obj, language, name)
             else:
                 initial = None
             form.base_fields[name] = placeholder.get_field(obj,
@@ -302,7 +308,7 @@ class PageAdmin(admin.ModelAdmin):
         if not admin.site.has_permission(request):
             return admin.site.login(request)
         language = get_language_from_request(request)
-
+        
         query = request.POST.get('q', '').strip()
 
         if query:
@@ -311,8 +317,12 @@ class PageAdmin(admin.ModelAdmin):
             pages = Page.objects.filter(pk__in=page_ids)
         else:
             pages = Page.objects.root()
+        if settings.PAGE_HIDE_SITES:
+            pages = pages.filter(sites=settings.SITE_ID)
 
+        perms = PagePermission(request.user)
         context = {
+            'can_publish': perms.check('publish'),
             'language': language,
             'name': _("page"),
             'pages': pages,
@@ -320,41 +330,39 @@ class PageAdmin(admin.ModelAdmin):
             'q': query
         }
 
-        # sad hack for ajax
-        # if template_name:
-        #    self.change_list_template = template_name
         context.update(extra_context or {})
         change_list = self.changelist_view(request, context)
-        #self.change_list_template = 'admin/pages/page/change_list.html'
-        #
+
         return change_list
 
-    def move_page(self, request, page_id, extra_context=None):
-        """Move the page to the requested target, at the given
-        position"""
-        page = Page.objects.get(pk=page_id)
 
-        target = request.POST.get('target', None)
-        position = request.POST.get('position', None)
-        if target is not None and position is not None:
-            try:
-                target = self.model.objects.get(pk=target)
-            except self.model.DoesNotExist:
-                pass
-                # TODO: should use the django message system
-                # to display this message
-                # _('Page could not been moved.')
-            else:
-                page.invalidate()
-                target.invalidate()
-                from mptt.exceptions import InvalidMove
-                invalid_move = False
-                try:
-                    page.move_to(target, position)
-                except InvalidMove:
-                    invalid_move = True
-                return list_pages_ajax(request, invalid_move)
-        return HttpResponseRedirect('../../')
+class PageAdminWithDefaultContent(PageAdmin):
+    """
+    Fill in values for content blocks from official language
+    if creating a new translation
+    """
+    def get_form(self, request, obj=None, **kwargs):
+        form = super(PageAdminWithDefaultContent, self
+            ).get_form(request, obj, **kwargs)
+
+        language = get_language_from_request(request)
+
+        if global_settings.LANGUAGE_CODE == language:
+            # this is the "official" language
+            return form
+
+        if Content.objects.filter(page=obj, language=language).count():
+            return form
+
+        # this is a new page, try to find some default content
+        template = get_template_from_request(request, obj)
+        for placeholder in get_placeholders(template):
+            name = placeholder.name
+            form.base_fields[name] = placeholder.get_field(obj, language,
+                initial=Content.objects.get_content(obj,
+                    global_settings.LANGUAGE_CODE, name))
+        return form
+
 
 for admin_class, model, options in get_connected():
     PageAdmin.inlines.append(make_inline_admin(admin_class, model, options))

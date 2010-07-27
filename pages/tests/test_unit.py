@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 """Django page CMS unit test suite module."""
-from pages.models import Page, Content, PageAlias
+from pages.models import Page, Content
 from pages.placeholders import PlaceholderNode
-from pages.tests.testcase import TestCase
+from pages.tests.testcase import TestCase, MockRequest
 from pages import urlconf_registry as reg
 
 import django
-from django.conf import settings as global_settings
 from django.contrib.auth.models import User
 from django.conf import settings
 from django.template import Template, RequestContext, Context
@@ -15,7 +14,7 @@ from django.template import Template, TemplateSyntaxError
 
 import datetime
 
-class PagesTestCase(TestCase):
+class UnitTestCase(TestCase):
     """Django page CMS unit test suite class."""
 
     def test_date_ordering(self):
@@ -106,6 +105,15 @@ class PagesTestCase(TestCase):
         p2.move_to(p1, position='first-child')
         self.assertEqual(template.render(context), 'parent-content')
 
+    def test_get_page_template_tag(self):
+        """Test get_page template tag."""
+        context = Context({})
+        pl1 = """{% load pages_tags %}{% get_page get-page-slug as toto %}{{ toto }}"""
+        template = get_template_from_string(pl1)
+        self.assertEqual(template.render(context), u'None')
+        page = self.new_page({'slug':'get-page-slug'})
+        self.assertEqual(template.render(context), u'get-page-slug')
+
 
     def test_placeholder_all_syntaxes(self):
         """Test placeholder syntaxes."""
@@ -122,7 +130,7 @@ class PagesTestCase(TestCase):
 
 
         # error in parse template content
-        setattr(global_settings, "DEBUG", True)
+        setattr(settings, "DEBUG", True)
         
         page = self.new_page({'wrong': '{% wrong %}'})
         context = Context({'current_page': page, 'lang':'en-us'})
@@ -185,7 +193,8 @@ class PagesTestCase(TestCase):
 
         # test the syntax
         page = self.new_page()
-        template = django.template.loader.get_template('pages/tests/test8.html')
+        template = django.template.loader.get_template(
+                'pages/tests/untranslated.html')
         context = Context({'current_page': page, 'lang':'en-us'})
         self.assertEqual(template.render(context), '')
 
@@ -249,3 +258,53 @@ class PagesTestCase(TestCase):
         self.assertEqual(Page.objects.drafts().count(), 0)
         self.assertEqual(Page.objects.expired().count(), 0)
 
+    def test_get_content_tag(self):
+        """
+        Test the {% get_content %} template tag
+        """
+        page_data = {'title':'test', 'slug':'test'}
+        page = self.new_page(page_data)
+
+        context = RequestContext(MockRequest, {'page': page})
+        template = Template('{% load pages_tags %}'
+                            '{% get_content page "title" "en-us" as content %}'
+                            '{{ content }}')
+        self.assertEqual(template.render(context), page_data['title'])
+        template = Template('{% load pages_tags %}'
+                            '{% get_content page "title" as content %}'
+                            '{{ content }}')
+        self.assertEqual(template.render(context), page_data['title'])
+
+    def test_show_content_tag(self):
+        """
+        Test the {% show_content %} template tag.
+        """
+        page_data = {'title':'test', 'slug':'test'}
+        page = self.new_page(page_data)
+        # cleanup the cache from previous tests
+        page.invalidate()
+
+        context = RequestContext(MockRequest, {'page': page, 'lang':'en-us',
+            'path':'/page-1/'})
+        template = Template('{% load pages_tags %}'
+                            '{% show_content page "title" "en-us" %}')
+        self.assertEqual(template.render(context), page_data['title'])
+        template = Template('{% load pages_tags %}'
+                            '{% show_content page "title" %}')
+        self.assertEqual(template.render(context), page_data['title'])
+
+    def test_pages_siblings_menu_tag(self):
+        """
+        Test the {% pages_siblings_menu %} template tag.
+        """
+        page_data = {'title':'test', 'slug':'test'}
+        page = self.new_page(page_data)
+        # cleanup the cache from previous tests
+        page.invalidate()
+
+        context = RequestContext(MockRequest, {'page': page, 'lang':'en-us',
+            'path':'/page-1/'})
+        template = Template('{% load pages_tags %}'
+                            '{% pages_siblings_menu page %}')
+        renderer = template.render(context)
+        

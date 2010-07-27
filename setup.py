@@ -7,16 +7,19 @@ def local_open(fname):
     return open(os.path.join(os.path.dirname(__file__), fname))
 
 import os
-templates_dirs = []
+data_dirs = []
 for directory in os.walk('pages/templates'):
-    templates_dirs.append(directory[0][6:]+'/*.*')
+    data_dirs.append(directory[0][6:]+'/*.*')
+
+for directory in os.walk('pages/media'):
+    data_dirs.append(directory[0][6:]+'/*.*')
 
 url_schema = 'http://pypi.python.org/packages/source/d/%s/%s-%s.tar.gz'
 download_url = url_schema % (package_name, package_name, pages.__version__)
 
 setup(
     name=package_name,
-    test_suite='example.test_runner.run_tests',
+    test_suite='pages.test_runner.run_tests',
     version=pages.__version__,
     description=pages.__doc__,
     author=pages.__author__,
@@ -29,15 +32,17 @@ setup(
         'BeautifulSoup',
         'Django',
         'html5lib>=0.10',
-        'django-tagging>0.2.1', # please use the trunk version of tagging
-        'django-mptt>0.2.1', # please use the trunk version of django mptt
-        'django-authority', # known as django-authority
+        'django-tagging>0.2.1',
+        'django-mptt-2>0.2.1',
+        'django-authority',
         'django-staticfiles',
         'django-haystack',
+        # necessary for tests
+        'coverage',
     ],
     packages=find_packages(exclude=['example', 'example.*']),
     # very important for the binary distribution to include the templates.
-    package_data={'pages': templates_dirs},
+    package_data={'pages': data_dirs},
     #include_package_data=True, # include package data under svn source control
     zip_safe=False,
     classifiers=[

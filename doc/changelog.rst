@@ -4,6 +4,35 @@
 
 This file describe new features and incompatibilites between released version of the CMS.
 
+Release 1.2.0
+=============
+
+    * Add publish right managements in the admin.
+    * Fix an admin bug with the untranslated option for placeholder.
+    * Fix the package so the media are included.
+    * Fix bug with the default value of PAGE_TEMPLATES doesn't trigger an error in the admin
+      when unspecified.
+    * Add a delete image feature to the image placeholder.
+    * Make root page url '/' work with the PAGE_USE_LANGUAGE_PREFIX option.
+    * Change the placeholder save prototype by adding an extra keyword parameter: extra_data.
+    * Fix a bug with the image placeholder when the "save and continue" button is used.
+
+Release 1.1.3
+=============
+
+    * Improved search index (url and title are included).
+    * The setup now specify django-mptt-2 instead of django-mptt.
+    * New template tag for navigation called "pages_siblings_menu".
+    * New object PageAdminWithDefaultContent: copy the official language text into new
+      language page's content blocks
+    * New setting PAGE_HIDE_SITES to hide the sites. When True the CMS only
+      show pages from the current site used to access the
+      admin. This allows administration of separate page-cms sites with the same DB.
+    * New admin template tag: language_content_up_to_date templatetag: mark the translations needing
+      updating in the admin.
+    * DEFAULT_PAGE_TEMPLATE is rennomed into PAGE_DEFAULT_TEMPLATE. This setting will still continue to work.
+    * Add a new template tag get_page to insert page object into the context.
+
 Release 1.1.2
 =============
 
