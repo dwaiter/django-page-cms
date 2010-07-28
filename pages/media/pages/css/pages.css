@@ -308,9 +308,10 @@ html[dir=rtl] .change-list .insert {
 
 .change-list .insertable .insert {
     display: block;
+    width: 130px;
 }
 .change-list .insert a {
-    float: left;
+    float: right;
     width: 10px; height: 21px;
     padding: 0 5px;
     background: url(../images/icons/insert.gif) no-repeat;
