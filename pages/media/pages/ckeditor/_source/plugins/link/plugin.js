@@ -37,8 +37,8 @@ CKEDITOR.plugins.add( 'link',
 				'background-position: center center;' +
 				'background-repeat: no-repeat;' +
 				'border: 1px solid #a9a9a9;' +
-				'width: 18px !important;' +
-				'height: 18px !important;' +
+				'width: 18px;' +
+				'height: 18px;' +
 			'}\n' +
 			'a.cke_anchor' +
 			'{' +
