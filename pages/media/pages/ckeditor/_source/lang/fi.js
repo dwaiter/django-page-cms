@@ -196,7 +196,6 @@ CKEDITOR.lang['fi'] =
 		bulletedTitle		: 'Numeroimattoman listan ominaisuudet',
 		type				: 'Tyyppi',
 		start				: 'Alku',
-		validateStartNumber				:'List start number must be a whole number.', // MISSING
 		circle				: 'Ympyrä',
 		disc				: 'Levy',
 		square				: 'Neliö',

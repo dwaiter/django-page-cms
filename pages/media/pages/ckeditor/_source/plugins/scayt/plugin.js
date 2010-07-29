@@ -382,7 +382,7 @@ CKEDITOR.plugins.scayt =
 			var protocol = document.location.protocol;
 			// Default to 'http' for unknown.
 			protocol = protocol.search( /https?:/) != -1? protocol : 'http:';
-			var baseUrl  = 'svc.spellchecker.net/scayt25/loader__base.js';
+			var baseUrl  = 'svc.spellchecker.net/spellcheck31/lf/scayt24/loader__base.js';
 
 			var scaytUrl  =  editor.config.scayt_srcUrl || ( protocol + '//' + baseUrl );
 			var scaytConfigBaseUrl =  plugin.parseUrl( scaytUrl ).path +  '/';
@@ -453,6 +453,9 @@ CKEDITOR.plugins.scayt =
 
 		exec: function( editor )
 		{
+			var autoStartup = editor.config.scayt_autoStartup;
+			autoStartup = ( autoStartup == undefined ) || autoStartup;
+
 			if ( plugin.isScaytReady( editor ) )
 			{
 				var isEnabled = plugin.isScaytEnabled( editor );
@@ -469,7 +472,7 @@ CKEDITOR.plugins.scayt =
 				scayt_control.focus( );
 				scayt_control.setDisabled( isEnabled );
 			}
-			else if ( !editor.config.scayt_autoStartup && plugin.engineLoaded >= 0 )	// Load first time
+			else if ( !autoStartup && plugin.engineLoaded >= 0 )	// Load first time
 			{
 				this.setState( CKEDITOR.TRISTATE_DISABLED );
 				plugin.loadEngine( editor );
@@ -775,7 +778,8 @@ CKEDITOR.plugins.scayt =
 			}
 
 			// Start plugin
-			if ( editor.config.scayt_autoStartup )
+			var autoStartup = editor.config.scayt_autoStartup;
+			if ( ( autoStartup == undefined ) || autoStartup )
 			{
 				editor.on( 'instanceReady', function()
 				{
@@ -807,9 +811,9 @@ CKEDITOR.plugins.scayt =
  * If enabled (true), turns on SCAYT automatically after loading the editor.
  * @name CKEDITOR.config.scayt_autoStartup
  * @type Boolean
- * @default false
+ * @default true
  * @example
- * config.scayt_autoStartup = true;
+ * config.scayt_autoStartup = false;
  */
 
 /**

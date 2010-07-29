@@ -5,14 +5,18 @@ For licensing, see LICENSE.html or http://ckeditor.com/license
 
 CKEDITOR.dialog.add( 'cellProperties', function( editor )
 	{
-		var langTable = editor.lang.table,
-			langCell = langTable.cell,
-			langCommon = editor.lang.common,
-			validate = CKEDITOR.dialog.validate,
-			widthPattern = /^(\d+(?:\.\d+)?)(px|%)$/,
-			heightPattern = /^(\d+(?:\.\d+)?)px$/,
-			bind = CKEDITOR.tools.bind,
-			spacer = { type : 'html', html : '&nbsp;' };
+		var langTable = editor.lang.table;
+		var langCell = langTable.cell;
+		var langCommon = editor.lang.common;
+		var validate = CKEDITOR.dialog.validate;
+		var widthPattern = /^(\d+(?:\.\d+)?)(px|%)$/,
+			heightPattern = /^(\d+(?:\.\d+)?)px$/;
+		var bind = CKEDITOR.tools.bind;
+
+		function spacer()
+		{
+			return { type : 'html', html : '&nbsp;' };
+		}
 
 		/**
 		 *
@@ -30,15 +34,15 @@ CKEDITOR.dialog.add( 'cellProperties', function( editor )
 			{
 				releaseHandlers( this );
 			};
-			var releaseHandlers = function( dialog )
-			{
-				dialog.removeListener( 'ok', onOk );
-				dialog.removeListener( 'cancel', onCancel );
-			};
 			var bindToDialog = function( dialog )
 			{
 				dialog.on( 'ok', onOk );
 				dialog.on( 'cancel', onCancel );
+			};
+			var releaseHandlers = function( dialog )
+			{
+				dialog.removeListener( 'ok', onOk );
+				dialog.removeListener( 'cancel', onCancel );
 			};
 			editor.execCommand( dialogName );
 			if ( editor._.storedDialogs.colordialog )
@@ -149,7 +153,7 @@ CKEDITOR.dialog.add( 'cellProperties', function( editor )
 													],
 													setup : function( selectedCell )
 													{
-														var widthMatch = widthPattern.exec( selectedCell.getStyle( 'width' ) || selectedCell.getAttribute( 'width' ) );
+														var widthMatch = widthPattern.exec( selectedCell.$.style.width );
 														if ( widthMatch )
 															this.setValue( widthMatch[2] );
 													}
@@ -208,7 +212,7 @@ CKEDITOR.dialog.add( 'cellProperties', function( editor )
 												}
 											]
 										},
-										spacer,
+										spacer(),
 										{
 											type : 'select',
 											id : 'wordWrap',
@@ -239,7 +243,7 @@ CKEDITOR.dialog.add( 'cellProperties', function( editor )
 												element.removeAttribute( 'noWrap' );
 											}
 										},
-										spacer,
+										spacer(),
 										{
 											type : 'select',
 											id : 'hAlign',
@@ -321,7 +325,7 @@ CKEDITOR.dialog.add( 'cellProperties', function( editor )
 										}
 									]
 								},
-								spacer,
+								spacer(),
 								{
 									type : 'vbox',
 									padding : 0,
@@ -348,7 +352,7 @@ CKEDITOR.dialog.add( 'cellProperties', function( editor )
 												selectedCell.renameNode( this.getValue() );
 											}
 										},
-										spacer,
+										spacer(),
 										{
 											type : 'text',
 											id : 'rowSpan',
@@ -395,7 +399,7 @@ CKEDITOR.dialog.add( 'cellProperties', function( editor )
 													selectedCell.removeAttribute( 'colSpan' );
 											}
 										},
-										spacer,
+										spacer(),
 										{
 											type : 'hbox',
 											padding : 0,
@@ -446,7 +450,7 @@ CKEDITOR.dialog.add( 'cellProperties', function( editor )
 												}
 											]
 										},
-										spacer,
+										spacer(),
 										{
 											type : 'hbox',
 											padding : 0,

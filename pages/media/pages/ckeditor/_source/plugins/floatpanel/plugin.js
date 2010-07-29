@@ -129,15 +129,14 @@ CKEDITOR.plugins.add( 'floatpanel',
 
 				element.setStyles(
 					{
-						top : '-30000px',
+						top : top + 'px',
+						left : '-3000px',
+						opacity : '0',	// FF3 is ignoring "visibility"
 						display	: ''
 					});
-				// Don't use display or visibility style because we need to
-				// calculate the rendering layout later and focus the element.
-				element.setOpacity( 0 );
 
 				// To allow the context menu to decrease back their width
-				element.getFirst().removeStyle( 'width' );
+				element.getFirst().removeStyle('width');
 
 				// Configure the IFrame blur event. Do that only once.
 				if ( !this._.blurSet )
@@ -204,10 +203,10 @@ CKEDITOR.plugins.add( 'floatpanel',
 								// We must adjust first the width or IE6 could include extra lines in the height computation
 								var widthNode = block.element.$;
 
-								if ( CKEDITOR.env.gecko || CKEDITOR.env.opera )
+								if ( CKEDITOR.env.gecko || CKEDITOR.env.opera)
 									widthNode = widthNode.parentNode;
 
-								if ( CKEDITOR.env.ie )
+								if ( CKEDITOR.env.ie)
 									widthNode = widthNode.document.body;
 
 								var width = widthNode.scrollWidth;
@@ -263,9 +262,10 @@ CKEDITOR.plugins.add( 'floatpanel',
 							element.setStyles(
 								{
 									top : top + 'px',
-									left : left + 'px'
+									left : left + 'px',
+									opacity : '1'
 								} );
-							element.setOpacity( 1 );
+
 						} , this );
 
 						panel.isLoaded ? panelLoad() : panel.onLoad = panelLoad;

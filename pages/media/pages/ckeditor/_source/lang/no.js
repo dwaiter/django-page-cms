@@ -196,7 +196,6 @@ CKEDITOR.lang['no'] =
 		bulletedTitle		: 'Bulleted List Properties', // MISSING
 		type				: 'Type', // MISSING
 		start				: 'Start', // MISSING
-		validateStartNumber				:'List start number must be a whole number.', // MISSING
 		circle				: 'Circle', // MISSING
 		disc				: 'Disc', // MISSING
 		square				: 'Square', // MISSING

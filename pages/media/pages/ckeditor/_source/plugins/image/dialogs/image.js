@@ -575,7 +575,7 @@ For licensing, see LICENSE.html or http://ckeditor.com/license
 							id : 'txtAlt',
 							type : 'text',
 							label : editor.lang.image.alt,
-							accessKey : 'T',
+							accessKey : 'A',
 							'default' : '',
 							onChange : function()
 							{
@@ -664,7 +664,7 @@ For licensing, see LICENSE.html or http://ckeditor.com/license
 																			element.setStyle( 'width',  oImageOriginal.$.width + 'px');
 																	}
 																	else
-																		element.setStyle( 'width', CKEDITOR.tools.cssLength( value ) );
+																		element.setStyle( 'width', value + 'px');
 																}
 																else if ( type == CLEANUP )
 																{
@@ -715,7 +715,7 @@ For licensing, see LICENSE.html or http://ckeditor.com/license
 																			element.setStyle( 'height', oImageOriginal.$.height + 'px' );
 																	}
 																	else
-																		element.setStyle( 'height',  CKEDITOR.tools.cssLength( value ) );
+																		element.setStyle( 'height', value + 'px' );
 																}
 																else if ( type == CLEANUP )
 																{
