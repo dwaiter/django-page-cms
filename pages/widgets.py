@@ -2,6 +2,8 @@
 """Django CMS come with a set of ready to use widgets that you can enable
 in the admin via a placeholder tag in your template."""
 
+import re
+
 from pages.settings import PAGES_MEDIA_URL, PAGE_TAGGING
 from pages.settings import PAGE_TINYMCE
 from pages.models import Page
@@ -146,6 +148,12 @@ class CKEditor(Textarea):
         }
         return rendered + mark_safe(render_to_string(
             'pages/widgets/ckeditor.html', context))
+
+    def value_from_datadict(self, data, files, name):
+        val = data.get(name, u'')
+        r = re.compile(r"""(.*?)(\s*<br\s*/?>\s*)*\Z""", re.MULTILINE | re.DOTALL)
+        m = r.match(val)
+        return m.groups()[0].strip()
 
 register_widget(CKEditor)
 
