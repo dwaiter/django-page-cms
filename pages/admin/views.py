@@ -124,6 +124,7 @@ def move_page(request, page_id, extra_context=None):
             invalid_move = False
             try:
                 page.move_to(target, position)
+                page.save()
             except InvalidMove:
                 invalid_move = True
             return list_pages_ajax(request, invalid_move)
