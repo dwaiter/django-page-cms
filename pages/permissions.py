@@ -7,9 +7,10 @@ from pages import settings
 
 permission_checks = []
 for perm_lang in settings.PAGE_LANGUAGES:
-    permission_checks.append('manage ('+perm_lang[0]+')')
+    permission_checks.append('manage (' + perm_lang[0] + ')')
 
 permission_checks = permission_checks + ['freeze', 'manage hierarchy']
+
 
 class PagePermission(authority.permissions.BasePermission):
     """Handle the :class:`Page <pages.models.Page>` permissions."""
@@ -80,6 +81,5 @@ class PagePermission(authority.permissions.BasePermission):
 
         # everything else failed, no permissions
         return False
-
 
 authority.register(Page, PagePermission)

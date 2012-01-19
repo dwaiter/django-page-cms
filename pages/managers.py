@@ -2,12 +2,13 @@
 """Django page CMS ``managers``."""
 from pages import settings
 from pages.utils import normalize_url, filter_link
-from pages.http import get_slug_and_relative_path
+from pages.http import get_slug
 
 from django.db import models, connection
 from django.db.models import Q
 from django.core.cache import cache
 from django.contrib.auth.models import User
+from django.db.models import Avg, Max, Min, Count
 
 from datetime import datetime
 
@@ -28,13 +29,14 @@ class PageManager(models.Manager):
         p = self.model(parent=parent, author=author,
             status=self.model.PUBLISHED)
         p.save()
-        Content(body='page-'+str(p.id), type='title',
-            language='en-us', page=p).save()
-        Content(body='page-'+str(p.id), type='slug',
-            language='en-us', page=p).save()
-        for child in range(1, child+1):
-            self.populate_pages(parent=p, child=child, depth=(depth-1))
-    
+        p = self.get(id=p.id)
+        Content(body='page-' + str(p.id), type='title',
+            language=settings.PAGE_DEFAULT_LANGUAGE, page=p).save()
+        Content(body='page-' + str(p.id), type='slug',
+            language=settings.PAGE_DEFAULT_LANGUAGE, page=p).save()
+        for child in range(1, child + 1):
+            self.populate_pages(parent=p, child=child, depth=(depth - 1))
+
     def on_site(self, site_id=None):
         """Return a :class:`QuerySet` of pages that are published on the site
         defined by the ``SITE_ID`` setting.
@@ -45,7 +47,7 @@ class PageManager(models.Manager):
             if not site_id:
                 site_id = settings.SITE_ID
             return self.filter(sites=site_id)
-        return self
+        return self.all()
 
     def root(self):
         """Return a :class:`QuerySet` of pages without parent."""
@@ -101,13 +103,26 @@ class PageManager(models.Manager):
     def from_path(self, complete_path, lang, exclude_drafts=True):
         """Return a :class:`Page <pages.models.Page>` according to
         the page's path."""
-        slug, path, lang = get_slug_and_relative_path(complete_path, lang)
-        page_ids = ContentManager().get_page_ids_by_slug(slug)
+        if complete_path.endswith("/"):
+            complete_path = complete_path[:-1]
+        # just return the root page
+        if complete_path == '':
+            root_pages = self.root()
+            if root_pages:
+                return root_pages[0]
+            else:
+                return None
+
+        slug = get_slug(complete_path)
+        from pages.models import Content
+        page_ids = Content.objects.get_page_ids_by_slug(slug)
         pages_list = self.on_site().filter(id__in=page_ids)
         if exclude_drafts:
             pages_list = pages_list.exclude(status=self.model.DRAFT)
-        current_page = None
         if len(pages_list) == 1:
+            if(settings.PAGE_USE_STRICT_URL and
+                pages_list[0].get_complete_slug(lang) != complete_path):
+                    return None
             return pages_list[0]
         # if more than one page is matching the slug,
         # we need to use the full URL
@@ -129,9 +144,8 @@ class ContentManager(models.Manager):
         import html5lib
         from html5lib import sanitizer
         p = html5lib.HTMLParser(tokenizer=sanitizer.HTMLSanitizer)
-        # TODO: that's a bit of a hack there
-        # we need to remove <html><head/><body>...</body></html>
-        return p.parse(content).toxml()[19:-14]
+        dom_tree = p.parseFragment(content)
+        return dom_tree.toxml()
 
     def set_or_create_content(self, page, language, ctype, body):
         """Set or create a :class:`Content <pages.models.Content>` for a
@@ -176,10 +190,31 @@ class ContentManager(models.Manager):
         content = self.create(page=page, language=language, body=body,
                 type=ctype)
 
+        # Delete old revisions
+        if settings.PAGE_CONTENT_REVISION_DEPTH:
+            oldest_content = self.filter(page=page, language=language,
+                type=ctype).order_by('-creation_date'
+                )[settings.PAGE_CONTENT_REVISION_DEPTH:]
+            for c in oldest_content:
+                c.delete()
+
+        return content
+
+    def get_content_object(self, page, language, ctype):
+        """Gets the latest published :class:`Content <pages.models.Content>`
+        for a particular page, language and placeholder type."""
+        params = {
+            'language': language,
+            'type': ctype,
+            'page': page
+        }
+        if page.freeze_date:
+            params['creation_date__lte'] = page.freeze_date
+        return  self.filter(**params).latest()
+
     def get_content(self, page, language, ctype, language_fallback=False):
-        """Gets the latest :class:`Content <pages.models.Content>`
-        for a particular page and language. Falls back to another
-        language if wanted.
+        """Gets the latest content string for a particular page, language and
+        placeholder.
 
         :param page: the concerned page object.
         :param language: the wanted language.
@@ -191,7 +226,7 @@ class ContentManager(models.Manager):
 
         frozen = int(bool(page.freeze_date))
         key = self.PAGE_CONTENT_DICT_KEY % (page.id, ctype, frozen)
-        
+
         if page._content_dict is None:
             page._content_dict = dict()
         if page._content_dict.get(key, None):
@@ -199,24 +234,18 @@ class ContentManager(models.Manager):
         else:
             content_dict = cache.get(key)
 
-        # fill a dict object for each language
+        # fill a dict object for each language, that will create
+        # P * L queries.
+        # L == number of language, P == number of placeholder in the page.
+        # Once generated the result is cached.
         if not content_dict:
             content_dict = {}
             for lang in settings.PAGE_LANGUAGES:
-                params = {
-                    'language':lang[0],
-                    'type':ctype,
-                    'page':page
-                }
-                if page.freeze_date:
-                    params['creation_date__lte'] = page.freeze_date
-                # using the same variable name "language" introduce nasty bugs.
-                lang = lang[0]
                 try:
-                    content = self.filter(**params).latest()
-                    content_dict[lang] = content.body
+                    content = self.get_content_object(page, lang[0], ctype)
+                    content_dict[lang[0]] = content.body
                 except self.model.DoesNotExist:
-                    content_dict[lang] = ''
+                    content_dict[lang[0]] = ''
             page._content_dict[key] = content_dict
             cache.set(key, content_dict)
 
@@ -240,7 +269,7 @@ class ContentManager(models.Manager):
         if settings.PAGE_USE_SITE_ID:
             content = content.filter(page__sites__id=settings.SITE_ID)
         try:
-           content = content.latest('creation_date')
+            content = content.latest('creation_date')
         except self.model.DoesNotExist:
             return None
         else:
@@ -248,23 +277,20 @@ class ContentManager(models.Manager):
 
     def get_page_ids_by_slug(self, slug):
         """Return all page's id matching the given slug.
+        This function also returns pages that have an old slug
+        that match.
 
         :param slug: the wanted slug.
         """
-        sql = '''SELECT pages_content.page_id,
-            MAX(pages_content.creation_date)
-            FROM pages_content WHERE (pages_content.type = %s
-            AND pages_content.body =%s)
-            GROUP BY pages_content.page_id'''
-            
-        cursor = connection.cursor()
-        cursor.execute(sql, ('slug', slug, ))
-        return [c[0] for c in cursor.fetchall()]
+        ids = self.filter(type='slug', body=slug).values('page_id').annotate(
+            max_creation_date=Max('creation_date')
+        )
+        return [content['page_id'] for content in ids]
 
 
 class PageAliasManager(models.Manager):
     """:class:`PageAlias <pages.models.PageAlias>` manager."""
-    
+
     def from_path(self, request, path, lang):
         """
         Resolve a request to an alias. returns a
